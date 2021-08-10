@@ -32,6 +32,7 @@ import static org.eclipse.microprofile.config.spi.ConfigSource.DEFAULT_ORDINAL;
 @Target(ElementType.TYPE)
 @Retention(RetentionPolicy.RUNTIME)
 @Documented
+@Repeatable(ConfigSources.class)
 public @interface ConfigSource {
 
     /**

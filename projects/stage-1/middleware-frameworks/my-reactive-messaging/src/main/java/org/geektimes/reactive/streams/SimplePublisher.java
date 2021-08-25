@@ -26,7 +26,7 @@ public class SimplePublisher<T> implements Publisher<T> {
     public static void main(String[] args) {
         SimplePublisher publisher = new SimplePublisher();
 
-        publisher.subscribe(new BusinessSubscriber(1));
+        publisher.subscribe(new BusinessSubscriber(5));
 
         for (int i = 0; i < 5; i++) {
             publisher.publish(i);

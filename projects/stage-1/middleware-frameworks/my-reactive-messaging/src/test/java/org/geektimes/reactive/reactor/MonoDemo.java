@@ -18,6 +18,7 @@ package org.geektimes.reactive.reactor;
 
 import org.geektimes.reactive.streams.BusinessSubscriber;
 import org.geektimes.reactive.streams.SimplePublisher;
+import org.junit.Test;
 import reactor.core.publisher.Mono;
 
 import java.util.function.Supplier;
@@ -30,25 +31,9 @@ import java.util.function.Supplier;
  */
 public class MonoDemo {
 
-    public static void main(String[] args) throws InterruptedException {
-//        Mono.just("Hello, Mono")
-////                .subscribeOn(Schedulers.single())
-//                .subscribeOn(Schedulers.elastic())
-//                .subscribe(data -> {
-//                    System.out.printf("[Thread : %s] %s\n", Thread.currentThread().getName(), data);
-//                });
-//
-//        Stream.of("Hello, Stream","Hello, Stream2")
-//                .parallel()
-//                .forEach(data -> {
-//                    System.out.printf("[Thread : %s] %s\n", Thread.currentThread().getName(), data);
-//                });
 
-        demoMonoPublisher();
-
-    }
-
-    private static void demoMonoPublisher() {
+    @Test
+    public void demoMonoPublisher() {
         SimplePublisher publisher = new SimplePublisher();
         Mono.from(publisher)
                 .subscribe(new BusinessSubscriber(5));
@@ -56,12 +41,5 @@ public class MonoDemo {
         for (int i = 0; i < 5; i++) {
             publisher.publish(i);
         }
-
-        Supplier<String> supplier = () -> "Hello,World";
-
-        Mono.fromSupplier(supplier)
-                .subscribe(data -> {
-                    System.out.printf("[Thread : %s] %s\n", Thread.currentThread().getName(), data);
-                });
     }
 }

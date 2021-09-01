@@ -16,6 +16,7 @@
  */
 package org.geektimes.event;
 
+import javax.jms.JMSException;
 import java.util.EventObject;
 
 /**
@@ -26,5 +27,5 @@ import java.util.EventObject;
  */
 public interface EventListener extends java.util.EventListener {
 
-    void onEvent(EventObject event);
+    void onEvent(EventObject event) throws JMSException;
 }

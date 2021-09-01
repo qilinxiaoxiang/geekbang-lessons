@@ -18,6 +18,7 @@ package org.geektimes.event.observer;
 
 import org.geektimes.event.EventListener;
 
+import javax.jms.JMSException;
 import java.util.EventObject;
 import java.util.Observable;
 import java.util.Observer;
@@ -39,7 +40,11 @@ class ListenerObserverAdapter implements Observer {
     @Override
     public void update(Observable o, Object arg) {
         if (arg instanceof EventObject) { // arg always is EventObject
-            listener.onEvent((EventObject) arg);
+            try {
+                listener.onEvent((EventObject) arg);
+            } catch (JMSException e) {
+                e.printStackTrace();
+            }
         }
     }
 }

@@ -1,23 +1,3 @@
-# 第九周作业
-实现分布式事件，基于 Zookeeper 或者 JMS 来实现
-
-## JMS
-### 1. 引入依赖
-
-```xml
-<!-- https://mvnrepository.com/artifact/org.apache.activemq/activemq-client -->
-<dependency>
-    <groupId>org.apache.activemq</groupId>
-    <artifactId>activemq-client</artifactId>
-    <version>5.16.3</version>
-</dependency>
-
-```
-
-### 2. Publisher
-参照DistributedEventPublisher
-
-```java
 package org.geektimes.event.distributed;
 
 import org.apache.activemq.ActiveMQConnectionFactory;
@@ -107,37 +87,3 @@ public class JmsEventPublisher {
         eventPublisher.close();
     }
 }
-
-```
-
-### 3. Subscriber
-参照DistributedEventSubscriber
-
-```java
-package org.geektimes.event.distributed;
-
-import javax.jms.JMSException;
-
-/**
- * @Author: 项峥
- * @Date: 2021/9/2 0:07
- */
-public class JmsEventSubscriber {
-    public static void main(String[] args) throws JMSException {
-        JmsEventPublisher eventPublisher = new JmsEventPublisher("tcp://localhost:61616");
-
-        // Customized Listener
-        eventPublisher.addEventListener(event -> {
-            if (!(event instanceof DistributedEventObject)) {
-                System.out.printf("[Thread : %s] Handles %s[Source : %s]\n",
-                        Thread.currentThread().getName(),
-                        event.getClass().getSimpleName(),
-                        event.getSource());
-            }
-        });
-
-        eventPublisher.close();
-    }
-}
-
-```

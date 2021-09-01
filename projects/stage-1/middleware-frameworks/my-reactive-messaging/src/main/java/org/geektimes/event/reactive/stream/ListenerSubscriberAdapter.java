@@ -20,6 +20,7 @@ import org.geektimes.event.EventListener;
 import org.reactivestreams.Subscriber;
 import org.reactivestreams.Subscription;
 
+import javax.jms.JMSException;
 import java.util.EventObject;
 
 /**
@@ -43,7 +44,11 @@ public class ListenerSubscriberAdapter implements Subscriber<EventObject> {
 
     @Override
     public void onNext(EventObject eventObject) {
-        listener.onEvent(eventObject);
+        try {
+            listener.onEvent(eventObject);
+        } catch (JMSException e) {
+            e.printStackTrace();
+        }
     }
 
     @Override

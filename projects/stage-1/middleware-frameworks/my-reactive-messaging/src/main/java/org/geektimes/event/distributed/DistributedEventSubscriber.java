@@ -16,7 +16,10 @@
  */
 package org.geektimes.event.distributed;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.EventObject;
+import java.util.Scanner;
 
 /**
  * Distributed {@link EventObject} Subscriber
@@ -25,8 +28,16 @@ import java.util.EventObject;
  * @since 1.0.0
  */
 public class DistributedEventSubscriber {
+    @Override
+    public String toString() {
+        return "DistributedEventSubscriber{}";
+    }
+
+
 
     public static void main(String[] args) {
+        Scanner s = new Scanner(System.in);
+        List<Object> objects = new ArrayList<>();
         DistributedEventPublisher eventPublisher = new DistributedEventPublisher("redis://127.0.0.1:6379");
 
         // Customized Listener
@@ -41,4 +52,6 @@ public class DistributedEventSubscriber {
 
         eventPublisher.close();
     }
+
+
 }

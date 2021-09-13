@@ -1,147 +1,96 @@
-# 第九周作业
-实现分布式事件，基于 Zookeeper 或者 JMS 来实现
+# 第十周作业
+## 1. 引入Bulkhead
+```xml
+<dependency>
+    <groupId>io.github.resilience4j</groupId>
+    <artifactId>resilience4j-bulkhead</artifactId>
+    <version>1.7.1</version>
+</dependency>
+```
 
-## JMS
-### 1. 引入依赖
+## 2. 在provider项目中写Filter
+```java
+package org.apache.dubbo.demo.filter;
+
+import io.github.resilience4j.bulkhead.Bulkhead;
+import io.github.resilience4j.bulkhead.BulkheadConfig;
+import io.github.resilience4j.bulkhead.BulkheadRegistry;
+import io.vavr.CheckedFunction0;
+import io.vavr.control.Try;
+import org.apache.dubbo.common.extension.Activate;
+import org.apache.dubbo.rpc.*;
+
+import java.time.Duration;
+
+import static org.apache.dubbo.common.constants.CommonConstants.PROVIDER;
+
+/**
+ * @Author: 项峥
+ * @Date: 2021/9/14 0:48
+ */
+@Activate(group = PROVIDER)
+public class BulkheadFilter implements Filter {
+    @Override
+    public Result invoke(Invoker<?> invoker, Invocation invocation) throws RpcException {
+        BulkheadConfig config = BulkheadConfig.custom()
+                .maxConcurrentCalls(1)
+                .maxWaitDuration(Duration.ofSeconds(2)).build();
+        Bulkhead bulkhead = Bulkhead.of("name", config);
+        CheckedFunction0<Result> resultCheckedFunction0 = Bulkhead.decorateCheckedSupplier(bulkhead, () -> invoker.invoke(invocation));
+        Try<Result> tryResult = Try.of(resultCheckedFunction0);
+        System.out.println("========== bulkhead filtered =======");
+        return tryResult.get();
+    }
+}
+
+```
+
+## 3. spi扩展
+在resource下, 新建文件META-INF/dubbo/org.apache.dubbo.rpc.Filter, 内容为
+```
+bulkhead=org.apache.dubbo.demo.filter.BulkheadFilter
+```
+
+## 4. 修改dubbo.provider.xml
+在dubbo:provider中添加属性`filter="bulkhead"`.
 
 ```xml
-<!-- https://mvnrepository.com/artifact/org.apache.activemq/activemq-client -->
-<dependency>
-    <groupId>org.apache.activemq</groupId>
-    <artifactId>activemq-client</artifactId>
-    <version>5.16.3</version>
-</dependency>
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Licensed to the Apache Software Foundation (ASF) under one or more
+  contributor license agreements.  See the NOTICE file distributed with
+  this work for additional information regarding copyright ownership.
+  The ASF licenses this file to You under the Apache License, Version 2.0
+  (the "License"); you may not use this file except in compliance with
+  the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+  Unless required by applicable law or agreed to in writing, software
+  distributed under the License is distributed on an "AS IS" BASIS,
+  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  See the License for the specific language governing permissions and
+  limitations under the License.
+  -->
+<beans xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:dubbo="http://dubbo.apache.org/schema/dubbo"
+       xmlns="http://www.springframework.org/schema/beans"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-4.3.xsd
+       http://dubbo.apache.org/schema/dubbo http://dubbo.apache.org/schema/dubbo/dubbo.xsd">
+
+    <dubbo:application name="demo-provider"/>
+
+    <dubbo:provider token="true" filter="bulkhead"/>
+
+    <dubbo:registry address="zookeeper://${zookeeper.address:127.0.0.1}:2181"/>
+
+    <dubbo:protocol name="dubbo"/>
+
+    <bean id="demoServiceImpl" class="org.apache.dubbo.demo.provider.DemoServiceImpl"/>
+
+    <dubbo:service serialization="protobuf" interface="org.apache.dubbo.demo.DemoService"
+                   ref="demoServiceImpl"/>
+
+</beans>
 
 ```
-
-### 2. Publisher
-参照DistributedEventPublisher
-
-```java
-package org.geektimes.event.distributed;
-
-import org.apache.activemq.ActiveMQConnectionFactory;
-import org.geektimes.event.EventListener;
-import org.geektimes.event.reactive.stream.ListenerSubscriberAdapter;
-import org.geektimes.reactive.streams.SimplePublisher;
-
-import javax.jms.*;
-import java.util.Date;
-import java.util.EventObject;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-
-/**
- * @Author: 项峥
- * @Date: 2021/9/1 23:50
- */
-public class JmsEventPublisher {
-    private final SimplePublisher<EventObject> simplePublisher;
-
-    private final Connection connection;
-
-    private final ExecutorService executorService;
-
-    public JmsEventPublisher(String uri) throws JMSException {
-        simplePublisher = new SimplePublisher();
-        ConnectionFactory connectionFactory = new ActiveMQConnectionFactory(ActiveMQConnectionFactory.DEFAULT_USER,
-                ActiveMQConnectionFactory.DEFAULT_PASSWORD, uri);
-        connection = connectionFactory.createConnection();
-        connection.start();
-        Session session = connection.createSession(true, Session.AUTO_ACKNOWLEDGE);
-        Destination destination = session.createQueue("TestQueue");
-        MessageProducer producer = session.createProducer(destination);
-        producer.setDeliveryMode(DeliveryMode.NON_PERSISTENT);
-        MessageConsumer consumer = session.createConsumer(destination);
-
-        // Build-in listener
-        addEventListener(event -> {
-            if (event instanceof DistributedEventObject) {
-                // Event -> Pub/Sub
-                producer.send(session.createTextMessage((String) event.getSource()));
-                session.commit();
-            }
-        });
-
-        this.executorService = Executors.newSingleThreadExecutor();
-
-        executorService.execute(() -> {
-            try {
-                Message message = consumer.receive();
-                publish(new EventObject(message));
-            } catch (JMSException e) {
-                e.printStackTrace();
-            }
-        });
-    }
-
-    public void publish(Object event) {
-//        simplePublisher.publish(new EventObject(event));
-        simplePublisher.publish(new DistributedEventObject(event));
-    }
-
-    private void publish(EventObject event) {
-//        simplePublisher.publish(new EventObject(event));
-        simplePublisher.publish(event);
-    }
-
-    public void addEventListener(EventListener eventListener) {
-        simplePublisher.subscribe(new ListenerSubscriberAdapter(eventListener));
-    }
-
-    public void close() {
-        try {
-            connection.close();
-        } catch (JMSException e) {
-            e.printStackTrace();
-        }
-        executorService.shutdown();
-    }
-
-    public static void main(String[] args) throws JMSException {
-        JmsEventPublisher eventPublisher = new JmsEventPublisher("tcp://localhost:61616");
-
-        // Publish Event
-        eventPublisher.publish(String.valueOf(new Date()));
-
-        eventPublisher.close();
-    }
-}
-
-```
-
-### 3. Subscriber
-参照DistributedEventSubscriber
-
-```java
-package org.geektimes.event.distributed;
-
-import javax.jms.JMSException;
-
-/**
- * @Author: 项峥
- * @Date: 2021/9/2 0:07
- */
-public class JmsEventSubscriber {
-    public static void main(String[] args) throws JMSException {
-        JmsEventPublisher eventPublisher = new JmsEventPublisher("tcp://localhost:61616");
-
-        // Customized Listener
-        eventPublisher.addEventListener(event -> {
-            if (!(event instanceof DistributedEventObject)) {
-                System.out.printf("[Thread : %s] Handles %s[Source : %s]\n",
-                        Thread.currentThread().getName(),
-                        event.getClass().getSimpleName(),
-                        event.getSource());
-            }
-        });
-
-        eventPublisher.close();
-    }
-}
-
-```
-
-
-# 第十周作业
-最近又比较忙, 周末补.

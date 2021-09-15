@@ -94,3 +94,43 @@ bulkhead=org.apache.dubbo.demo.filter.BulkheadFilter
 </beans>
 
 ```
+
+# 第十一周作业
+## Configuration类
+要求在非web应用才装配, 所以加上`@ConditionalOnNotWebApplication`注解.
+
+```java
+package com.wsbo.activemqtest.config;
+
+import org.springframework.boot.ApplicationRunner;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnNotWebApplication;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+
+/**
+ * @Author: 项峥
+ * @Date: 2021/9/15 16:33
+ */
+@ConditionalOnNotWebApplication
+@Configuration
+public class ApplicationRunnerConfig {
+    @Bean
+    public ApplicationRunner applicationRunner() {
+        System.out.println("build application runner");
+        return args -> System.out.println("Hello world!");
+    }
+}
+
+```
+
+## 自动配置
+### 1. 配置文件
+在resource/META-INF下新建文件spring.factories
+
+```
+org.springframework.boot.autoconfigure.EnableAutoConfiguration=com.wsbo.activemqtest.config.ApplicationRunnerConfig
+```
+
+### 2. 启动类上加上注解
+1. 启动类加上注解`@SpringBootApplication`
+2. 如果需要的话, 配置`@ComponentScan`
